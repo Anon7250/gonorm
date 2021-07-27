@@ -8,6 +8,8 @@ type WriteTransaction struct {
 	// Create json items that must not already exist
 	Creates map[string]interface{}
 
+	Overwrites map[string]interface{}
+
 	// Sets fields of json items
 	SetFields map[string]map[string]interface{}
 

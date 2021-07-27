@@ -152,6 +152,23 @@ func (todo *DynDB) DoWriteTransaction(t WriteTransaction) error {
 		}
 		transactions = append(transactions, item)
 	}
+	for key, value := range t.Overwrites {
+		values := map[string]dyndbTypes.AttributeValue{
+			TableKey: &dyndbTypes.AttributeValueMemberS{Value: key},
+		}
+		rawJson, err := attributevalue.Marshal(value)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, errMsg+err.Error())
+		}
+		values[TableJsonField] = rawJson
+		item := dyndbTypes.TransactWriteItem{
+			Put: &dyndbTypes.Put{
+				TableName: aws.String(todo.Table),
+				Item:      values,
+			},
+		}
+		transactions = append(transactions, item)
+	}
 	for key, fields := range t.SetFields {
 		values := map[string]dyndbTypes.AttributeValue{}
 		updateExpressions := make([]string, 0)
