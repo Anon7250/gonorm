@@ -83,6 +83,57 @@ func (todo *DynDB) GetJson(key string, valueOut interface{}) error {
 	return nil
 }
 
+func (todo *DynDB) GetJsons(keys []string, rawValuesOut *[]interface{}) error {
+	keyFilters := make([]map[string]dyndbTypes.AttributeValue, 0)
+	for _, key := range keys {
+		filter := map[string]dyndbTypes.AttributeValue{
+			TableKey: &dyndbTypes.AttributeValueMemberS{Value: key},
+		}
+		keyFilters = append(keyFilters, filter)
+	}
+	input := dyndb.BatchGetItemInput{
+		RequestItems: map[string]dyndbTypes.KeysAndAttributes{
+			todo.Table: {
+				Keys: keyFilters,
+			},
+		},
+	}
+	output, err := todo.DB.BatchGetItem(context.TODO(), &input)
+	if err != nil {
+		return fiber.NewError(
+			fiber.StatusInternalServerError,
+			fmt.Sprintf("Cannot fetch jsons from database: %v", err),
+		)
+	}
+
+	*rawValuesOut = make([]interface{}, 0)
+	for _, item := range output.Responses[todo.Table] {
+		asMap := dyndbTypes.AttributeValueMemberM{
+			Value: item,
+		}
+		*rawValuesOut = append(*rawValuesOut, asMap)
+	}
+	return nil
+}
+
+func (todo *DynDB) Unmarshal(rawValue interface{}, valueOut interface{}) error {
+	asMap, ok := rawValue.(dyndbTypes.AttributeValueMemberM)
+	if !ok {
+		return fiber.NewError(
+			fiber.StatusInternalServerError,
+			fmt.Sprintf("Expecting %v to be stored in AWS format.", rawValue),
+		)
+	}
+	rawJson, ok := asMap.Value["rawJson"]
+	if !ok {
+		return fiber.NewError(
+			fiber.StatusInternalServerError,
+			fmt.Sprintf("Expecting %v to contain 'rawJson'", asMap.Value["key"]),
+		)
+	}
+	return attributevalue.Unmarshal(rawJson, valueOut)
+}
+
 func (todo *DynDB) GetStringList(key string, valueOut *[]string) error {
 	result, err := todo.getItem(key)
 	if err != nil {

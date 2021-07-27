@@ -31,19 +31,53 @@ func (todo *RAMDB) GetJson(key string, valueOut interface{}) error {
 	todo.lock(key)
 	defer todo.unlock(key)
 
+	ansBytes, err := todo.getJsonHelper(key)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(ansBytes, valueOut)
+}
+
+func (todo *RAMDB) getJsonHelper(key string) ([]byte, error) {
 	ans, ok := todo.Jsons.Load(key)
 	if !ok {
-		return fiber.NewError(fiber.StatusNotFound, "No such DB key: "+key)
+		return nil, fiber.NewError(fiber.StatusNotFound, "No such DB key: "+key)
 	}
 
 	ansBytes, ok := ans.([]byte)
 	if !ok {
-		return fiber.NewError(
+		return nil, fiber.NewError(
 			fiber.StatusInternalServerError,
 			fmt.Sprintf("Invalid json for key '%s': %T: %#v", key, ans, ans),
 		)
 	}
-	return json.Unmarshal(ansBytes, valueOut)
+	return ansBytes, nil
+}
+
+func (todo *RAMDB) GetJsons(keys []string, rawValuesOut *[]interface{}) error {
+	*rawValuesOut = make([]interface{}, 0)
+	for _, key := range keys {
+		todo.lock(key)
+		defer todo.unlock(key)
+
+		bytes, err := todo.getJsonHelper(key)
+		if err != nil {
+			return err
+		}
+		*rawValuesOut = append(*rawValuesOut, bytes)
+	}
+	return nil
+}
+
+func (todo *RAMDB) Unmarshal(rawValue interface{}, valueOut interface{}) error {
+	bytes, ok := rawValue.([]byte)
+	if !ok {
+		return fiber.NewError(
+			fiber.StatusInternalServerError,
+			fmt.Sprintf("Expecting %v to be stored in bytes format.", rawValue),
+		)
+	}
+	return json.Unmarshal(bytes, valueOut)
 }
 
 func (todo *RAMDB) SetJson(key string, value interface{}) error {
