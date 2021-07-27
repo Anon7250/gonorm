@@ -124,7 +124,14 @@ func (todo *DynDB) Unmarshal(rawValue interface{}, valueOut interface{}) error {
 			fmt.Sprintf("Expecting %v to be stored in AWS format.", rawValue),
 		)
 	}
-	return attributevalue.Unmarshal(&asMap, valueOut)
+	rawJson, ok := asMap.Value["rawJson"]
+	if !ok {
+		return fiber.NewError(
+			fiber.StatusInternalServerError,
+			fmt.Sprintf("Expecting %v to contain 'rawJson'", asMap.Value["key"]),
+		)
+	}
+	return attributevalue.Unmarshal(rawJson, valueOut)
 }
 
 func (todo *DynDB) GetStringList(key string, valueOut *[]string) error {
