@@ -23,8 +23,10 @@ type WriteTransaction struct {
 type KeyValueDB interface {
 	HasKey(key string) (bool, error)
 	GetJson(key string, valueOut interface{}) error
+	GetJsons(keys []string, rawValueOut *[]interface{}) error
 	GetStringList(key string, valueOut *[]string) error
 	DoWriteTransaction(transaction WriteTransaction) error
+	Unmarshal(rawValue interface{}, valueOut interface{}) error
 }
 
 func GetUUID() (string, error) {
